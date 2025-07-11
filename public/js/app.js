@@ -41,7 +41,7 @@ const trabajadores = [
     { nombre: "Cristobal Orrego", area: "Agente de Servicios" },
     { nombre: "Gabriel Fuentes", area: "Agente de Servicios" },
     { nombre: "Giovanni Caceres", area: "Agente de Servicios" },
-    { nombre: "Andrea Gavilán", area: "Secretaría & Contabilidad" },
+    { nombre: "Andrea Gavilán", area: "Secretaría" },
     { nombre: "Claudio Giaconi", area: "Gerencia ITEX" }
 ];
 
