@@ -8,7 +8,7 @@ let tabActual = 'hoy';
 let confirmacionCallback = null;
 let fechaSeleccionada = new Date();
 
-// Definición de bloques horarios (actualizado según solicitud)
+// Definición de bloques horarios
 const bloquesHorarios = [
     { inicio: "00:00", fin: "03:00", nombre: "Madrugada" },
     { inicio: "03:00", fin: "06:00", nombre: "Madrugada" },
@@ -31,7 +31,7 @@ const ESTADOS = {
     'LICENCIA': { color: 'bg-licencia', texto: 'LICENCIA' }
 };
 
-// Datos de trabajadores (MODIFICADO según solicitud)
+// Datos de trabajadores
 const trabajadores = [
     { nombre: "Franklin Mendoza", area: "Jefatura SOC" },
     { nombre: "Johandry Bellorin", area: "Operador SOC" },
@@ -68,14 +68,12 @@ function actualizarReloj() {
     };
 
     let fechaFormateada = ahora.toLocaleDateString("es-CL", opcionesFecha);
-    // Convertir el día a mayúsculas
     fechaFormateada = fechaFormateada.replace(/(^\w|\s\w)/g, m => m.toUpperCase());
 
     const horaFormateada = ahora.toLocaleTimeString("es-CL", opcionesHora);
 
     datetimeDisplay.textContent = `${fechaFormateada} - ${horaFormateada}`;
 
-    // Actualizar el índice del bloque actual
     const horaActual = ahora.getHours() + ":" + (ahora.getMinutes() < 10 ? "0" : "") + ahora.getMinutes();
     let nuevoBloqueActual = null;
 
@@ -91,7 +89,7 @@ function actualizarReloj() {
     }
 }
 
-// Función mejorada para buscar actividades que se superpongan con un bloque horario
+// Función mejorada para buscar actividades
 function buscarActividades(trabajador, fecha, bloque) {
     if (!horarios[trabajador]) return [];
 
@@ -101,7 +99,6 @@ function buscarActividades(trabajador, fecha, bloque) {
     const inicioBloque = new Date(`${fecha}T${bloqueInfo.inicio}`);
     const finBloque = new Date(`${fecha}T${bloqueInfo.fin}`);
 
-    // Ajustar para bloques que pasan la medianoche
     if (bloqueInfo.fin < bloqueInfo.inicio) {
         finBloque.setDate(finBloque.getDate() + 1);
     }
@@ -111,20 +108,18 @@ function buscarActividades(trabajador, fecha, bloque) {
         const inicioActividad = new Date(`${actividad.fecha_inicio}T${actividad.hora_inicio}`);
         const finActividad = new Date(`${actividad.fecha_fin}T${actividad.hora_fin}`);
 
-        // Ajustar para actividades que cruzan medianoche
         if (actividad.hora_fin < actividad.hora_inicio) {
             finActividad.setDate(finActividad.getDate() + 1);
         }
 
-        // Verificar superposición entre el bloque y la actividad
         const actividadEnBloque = (
-            (inicioActividad < finBloque && finActividad > inicioBloque) || // Superposición normal
-            (actividad.fecha_inicio === fecha && actividad.fecha_fin === fecha) || // Mismo día
-            (actividad.fecha_inicio === fecha && actividad.fecha_fin !== fecha && actividad.hora_fin < actividad.hora_inicio) || // Cruce de medianoche
-            (actividad.fecha_inicio !== actividad.fecha_fin && ( // Actividades multi-día
-                (fecha > actividad.fecha_inicio && fecha < actividad.fecha_fin) || // Día intermedio
-                (fecha === actividad.fecha_inicio && finActividad > inicioBloque) || // Primer día
-                (fecha === actividad.fecha_fin && inicioActividad < finBloque) // Último día
+            (inicioActividad < finBloque && finActividad > inicioBloque) ||
+            (actividad.fecha_inicio === fecha && actividad.fecha_fin === fecha) ||
+            (actividad.fecha_inicio === fecha && actividad.fecha_fin !== fecha && actividad.hora_fin < actividad.hora_inicio) ||
+            (actividad.fecha_inicio !== actividad.fecha_fin && (
+                (fecha > actividad.fecha_inicio && fecha < actividad.fecha_fin) ||
+                (fecha === actividad.fecha_inicio && finActividad > inicioBloque) ||
+                (fecha === actividad.fecha_fin && inicioActividad < finBloque)
             ))
         );
 
@@ -136,7 +131,7 @@ function buscarActividades(trabajador, fecha, bloque) {
     return actividadesEnBloque;
 }
 
-// Función para actualizar ambas vistas
+// Función para actualizar vistas
 function actualizarVistas() {
     actualizarEstadosHorarios();
     if (tabActual === 'hoy') {
@@ -146,7 +141,7 @@ function actualizarVistas() {
     }
 }
 
-// Función para generar la tabla de horarios para hoy con bloques
+// Función para generar tabla de hoy
 function generarTablaHoy() {
     const tabla = document.getElementById("tabla-hoy");
     if (!tabla) return;
@@ -156,30 +151,28 @@ function generarTablaHoy() {
     const hoy = new Date();
     const hoyStr = hoy.toISOString().split('T')[0];
 
-    // Crear encabezado
     const thead = document.createElement("thead");
     const header = document.createElement("tr");
     header.innerHTML = `
-                <th class="border p-2 bg-yellow-800 rounded-tl-lg columna-fija">Especialista</th>
-                <th class="border p-2 bg-yellow-800 rounded-tr-lg columna-fija-area">Área</th>
-                ${bloquesHorarios.map((bloque, index) => `
-                    <th class="border p-1 bg-yellow-800 text-xs ${index === bloqueActualIndex ? 'columna-hora-actual' : ''}">
-                        ${bloque.nombre}<br>${bloque.inicio}-${bloque.fin}
-                    </th>
-                `).join('')}
-            `;
+        <th class="border p-2 bg-yellow-800 rounded-tl-lg columna-fija">Especialista</th>
+        <th class="border p-2 bg-yellow-800 rounded-tr-lg columna-fija-area">Área</th>
+        ${bloquesHorarios.map((bloque, index) => `
+            <th class="border p-1 bg-yellow-800 text-xs ${index === bloqueActualIndex ? 'columna-hora-actual' : ''}">
+                ${bloque.nombre}<br>${bloque.inicio}-${bloque.fin}
+            </th>
+        `).join('')}
+    `;
     thead.appendChild(header);
     tabla.appendChild(thead);
 
-    // Crear cuerpo de la tabla
     const tbody = document.createElement("tbody");
 
     trabajadores.forEach(trabajador => {
         const fila = document.createElement("tr");
         fila.innerHTML = `
-                    <td class="columna-fija" title="${trabajador.nombre}">${trabajador.nombre}</td>
-                    <td class="columna-fija-area">${trabajador.area}</td>
-                `;
+            <td class="columna-fija" title="${trabajador.nombre}">${trabajador.nombre}</td>
+            <td class="columna-fija-area">${trabajador.area}</td>
+        `;
 
         bloquesHorarios.forEach((bloque, index) => {
             const actividades = buscarActividades(trabajador.nombre, hoyStr, index);
@@ -188,7 +181,6 @@ function generarTablaHoy() {
             let esBloqueActual = index === bloqueActualIndex;
 
             if (actividades.length > 0) {
-                // Ordenar actividades por hora de inicio
                 actividades.sort((a, b) => {
                     const horaA = new Date(`${a.fecha_inicio}T${a.hora_inicio}`);
                     const horaB = new Date(`${b.fecha_inicio}T${b.hora_inicio}`);
@@ -198,7 +190,6 @@ function generarTablaHoy() {
                 const actividadPrincipal = actividades[0];
                 let estado = actividadPrincipal.estado;
 
-                // Verificar si es el bloque actual y la actividad está en curso
                 const inicio = new Date(`${actividadPrincipal.fecha_inicio}T${actividadPrincipal.hora_inicio}`);
                 const fin = new Date(`${actividadPrincipal.fecha_fin}T${actividadPrincipal.hora_fin}`);
 
@@ -211,39 +202,37 @@ function generarTablaHoy() {
 
                 colorClass = ESTADOS[estado].color;
 
-                // Contenido principal (con texto "Turno iniciado" más grande)
                 contenido = `
-                            <div class="text-xs font-bold truncate-text">${actividadPrincipal.actividad}</div>
-                            ${actividadPrincipal.cliente ? `<div class="text-[10px] italic truncate-text">${actividadPrincipal.cliente}</div>` : ''}
-                            <div class="text-hora truncate-text">${formatoHora(actividadPrincipal.hora_inicio)} - ${formatoHora(actividadPrincipal.hora_fin)}</div>
-                            ${actividadPrincipal.fecha_inicio !== actividadPrincipal.fecha_fin ?
+                    <div class="text-xs font-bold truncate-text">${actividadPrincipal.actividad}</div>
+                    ${actividadPrincipal.cliente ? `<div class="text-[10px] italic truncate-text">${actividadPrincipal.cliente}</div>` : ''}
+                    <div class="text-hora truncate-text">${formatoHora(actividadPrincipal.hora_inicio)} - ${formatoHora(actividadPrincipal.hora_fin)}</div>
+                    ${actividadPrincipal.fecha_inicio !== actividadPrincipal.fecha_fin ?
                         `<div class="text-xs font-semibold text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividadPrincipal.fecha_inicio)})</div>` : ''}
-                            <div class="etiqueta-estado ${ESTADOS[estado].color}">${ESTADOS[estado].texto}</div>
-                        `;
+                    <div class="etiqueta-estado ${ESTADOS[estado].color}">${ESTADOS[estado].texto}</div>
+                `;
 
-                // Mostrar actividades adicionales si hay más de 1
                 if (actividades.length > 1) {
-                    contenido += `<div class="text-[10px] mt-1 text-center cursor-pointer underline truncate-text" 
-                                onclick="mostrarActividadesSuperpuestas('${trabajador.nombre}', '${hoyStr}', ${index})">
-                                +${actividades.length - 1} más
-                            </div>`;
-                } else {
-                    // Mostrar botones solo si hay una actividad
                     contenido += `
-                            <div class="flex justify-center mt-1 space-x-1">
-                                <button onclick="event.stopPropagation(); editarHorario('${actividadPrincipal.id}')" class="btn-editar">Editar</button>
-                                <button onclick="event.stopPropagation(); confirmarEliminar('${actividadPrincipal.id}')" class="btn-eliminar">Eliminar</button>
-                            </div>`;
+                        <div class="text-[10px] mt-1 text-center cursor-pointer underline truncate-text" 
+                            onclick="mostrarActividadesSuperpuestas('${trabajador.nombre}', '${hoyStr}', ${index})">
+                            +${actividades.length - 1} más
+                        </div>`;
+                } else {
+                    contenido += `
+                        <div class="flex justify-center mt-1 space-x-1">
+                            <button onclick="event.stopPropagation(); editarHorario('${actividadPrincipal.id}')" class="btn-editar">Editar</button>
+                            <button onclick="event.stopPropagation(); confirmarEliminar('${actividadPrincipal.id}')" class="btn-eliminar">Eliminar</button>
+                        </div>`;
                 }
             }
 
             fila.innerHTML += `
-                        <td class="border p-1 text-center ${colorClass} 
-                            ${esBloqueActual ? 'bloque-actual' : ''} 
-                            celda-horario text-white">
-                            ${contenido}
-                        </td>
-                    `;
+                <td class="border p-1 text-center ${colorClass} 
+                    ${esBloqueActual ? 'bloque-actual' : ''} 
+                    celda-horario text-white">
+                    ${contenido}
+                </td>
+            `;
         });
 
         tbody.appendChild(fila);
@@ -252,87 +241,50 @@ function generarTablaHoy() {
     tabla.appendChild(tbody);
 }
 
-// Función para formatear solo hora
+// Funciones de formato
 function formatoHora(horaStr) {
     return horaStr;
 }
 
-// Función para formatear fecha completa (DD-MM-YYYY)
 function formatoFechaCompleta(fechaStr) {
     const [año, mes, dia] = fechaStr.split('-');
     return `${dia}-${mes}-${año}`;
 }
 
-// Función para formatear fecha corta (DD-MM)
 function formatoFechaCorta(fechaStr) {
     const [año, mes, dia] = fechaStr.split('-');
     return `${dia}-${mes}`;
 }
 
-// Función para formatear fecha textual
-function formatoFechaTextual(fechaStr) {
-    const fecha = new Date(fechaStr);
-    const opciones = { day: 'numeric', month: 'long', year: 'numeric' };
-    return fecha.toLocaleDateString("es-CL", opciones);
-}
-
-// Función para formatear fecha para el modal de actividades superpuestas
-function formatoFechaModal(fechaInicioStr, fechaFinStr, horaInicio, horaFin) {
-    const fechaInicio = new Date(`${fechaInicioStr}T${horaInicio}`);
-    const fechaFin = new Date(`${fechaFinStr}T${horaFin}`);
-
-    // Si es el mismo día
-    if (fechaInicio.toDateString() === fechaFin.toDateString()) {
-        return `${formatoFechaCorta(fechaInicioStr)} ${horaInicio} - ${horaFin}`;
-    }
-
-    // Si son días diferentes (turno nocturno)
-    return `${formatoFechaCorta(fechaInicioStr)} ${horaInicio} - ${formatoFechaCorta(fechaFinStr)} ${horaFin}`;
-}
-
-// Función para calcular el número de semana
-function getWeekNumber(date) {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-}
-
-// Función para generar la tabla de horarios semanal (mejorada para mostrar actividades superpuestas)
+// Función para generar tabla semanal
 function generarTablaSemanal() {
     const tabla = document.getElementById("tabla-semanal");
     if (!tabla) return;
 
     tabla.innerHTML = "";
 
-    // Obtener el lunes de la semana actual
     const lunes = new Date(fechaSeleccionada);
     lunes.setDate(fechaSeleccionada.getDate() - (fechaSeleccionada.getDay() === 0 ? 6 : fechaSeleccionada.getDay() - 1));
 
-    // Obtener el domingo de la semana actual
     const domingo = new Date(lunes);
     domingo.setDate(lunes.getDate() + 6);
 
-    // Calcular número de semana
     const numeroSemana = getWeekNumber(lunes);
 
-    // Formatear fechas en español
     const opcionesFecha = { day: 'numeric', month: 'long', year: 'numeric' };
     const fechaInicioStr = lunes.toLocaleDateString("es-CL", opcionesFecha);
     const fechaFinStr = domingo.toLocaleDateString("es-CL", opcionesFecha);
 
-    // Actualizar el título de la semana
     document.getElementById("fecha-mostrada").textContent =
         `Semana ${numeroSemana} | ${fechaInicioStr} al ${fechaFinStr}`;
 
-    // Crear encabezado con los días de la semana (Lunes a Domingo)
     const thead = document.createElement("thead");
     const header = document.createElement("tr");
     header.innerHTML = `
-                <th class="border p-2 bg-yellow-800 rounded-tl-lg columna-fija">Especialista</th>
-                <th class="border p-2 bg-yellow-800 rounded-tr-lg columna-fija-area">Área</th>
-            `;
+        <th class="border p-2 bg-yellow-800 rounded-tl-lg columna-fija">Especialista</th>
+        <th class="border p-2 bg-yellow-800 rounded-tr-lg columna-fija-area">Área</th>
+    `;
 
-    // Generar encabezados para cada día de la semana
     const diasSemana = [];
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -346,38 +298,34 @@ function generarTablaSemanal() {
         const diaStr = dia.toLocaleDateString("es-CL", { weekday: 'short', day: 'numeric' });
 
         header.innerHTML += `
-                    <th class="border p-1 bg-yellow-800 text-xs ${esHoy ? 'columna-dia-actual' : ''}">
-                        ${diaStr}
-                    </th>
-                `;
+            <th class="border p-1 bg-yellow-800 text-xs ${esHoy ? 'columna-dia-actual' : ''}">
+                ${diaStr}
+            </th>
+        `;
     }
 
     thead.appendChild(header);
     tabla.appendChild(thead);
 
-    // Crear cuerpo de la tabla
     const tbody = document.createElement("tbody");
 
     trabajadores.forEach(trabajador => {
         const fila = document.createElement("tr");
         fila.innerHTML = `
-                    <td class="columna-fija" title="${trabajador.nombre}">${trabajador.nombre}</td>
-                    <td class="columna-fija-area">${trabajador.area}</td>
-                `;
+            <td class="columna-fija" title="${trabajador.nombre}">${trabajador.nombre}</td>
+            <td class="columna-fija-area">${trabajador.area}</td>
+        `;
 
-        // Para cada día de la semana (Lunes a Domingo)
         diasSemana.forEach(dia => {
             const diaStr = dia.toISOString().split('T')[0];
             const actividadesDia = [];
 
-            // Buscar actividades para este día
             if (horarios[trabajador.nombre]) {
                 for (const id in horarios[trabajador.nombre]) {
                     const actividad = horarios[trabajador.nombre][id];
                     const inicio = new Date(`${actividad.fecha_inicio}T${actividad.hora_inicio}`);
                     const fin = new Date(`${actividad.fecha_fin}T${actividad.hora_fin}`);
 
-                    // Verificar si la actividad ocurre en este día específico
                     const actividadEnEsteDia = (
                         (inicio <= dia && fin >= dia) ||
                         (inicio.toDateString() === dia.toDateString()) ||
@@ -395,18 +343,15 @@ function generarTablaSemanal() {
             let esHoy = dia.toDateString() === hoy.toDateString();
 
             if (actividadesDia.length > 0) {
-                // Ordenar actividades por hora de inicio
                 actividadesDia.sort((a, b) => {
                     const horaA = new Date(`${a.fecha_inicio}T${a.hora_inicio}`);
                     const horaB = new Date(`${b.fecha_inicio}T${b.hora_inicio}`);
                     return horaA - horaB;
                 });
 
-                // Mostrar todas las actividades para este día
                 contenido = actividadesDia.map(actividad => {
                     let estado = actividad.estado;
 
-                    // Verificar si es el día actual y la actividad está en curso
                     if (esHoy) {
                         const ahora = new Date();
                         const inicio = new Date(`${actividad.fecha_inicio}T${actividad.hora_inicio}`);
@@ -423,31 +368,31 @@ function generarTablaSemanal() {
                     colorClass = ESTADOS[estado].color;
 
                     return `
-                                <div class="actividad-multiple ${ESTADOS[estado].color}">
-                                    <div class="text-xs font-bold truncate-text">${actividad.actividad}</div>
-                                    ${actividad.cliente ? `<div class="text-[10px] italic truncate-text">${actividad.cliente}</div>` : ''}
-                                    <div class="text-hora truncate-text">${formatoHora(actividad.hora_inicio)} - ${formatoHora(actividad.hora_fin)}</div>
-                                    ${actividad.fecha_inicio !== actividad.fecha_fin ?
-                            `<div class="text-xs font-semibold text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividad.fecha_inicio)})</div>` : ''}
-                                    <div class="etiqueta-estado ${ESTADOS[estado].color}">${ESTADOS[estado].texto}</div>
-                                    <div class="flex justify-center mt-1 space-x-1">
-                                        <button onclick="event.stopPropagation(); editarHorario('${actividad.id}')" class="btn-editar">Editar</button>
-                                        <button onclick="event.stopPropagation(); confirmarEliminar('${actividad.id}')" class="btn-eliminar">Eliminar</button>
-                                    </div>
-                                </div>
-                            `;
+                        <div class="actividad-multiple ${ESTADOS[estado].color}">
+                            <div class="text-xs font-bold truncate-text">${actividad.actividad}</div>
+                            ${actividad.cliente ? `<div class="text-[10px] italic truncate-text">${actividad.cliente}</div>` : ''}
+                            <div class="text-hora truncate-text">${formatoHora(actividad.hora_inicio)} - ${formatoHora(actividad.hora_fin)}</div>
+                            ${actividad.fecha_inicio !== actividad.fecha_fin ?
+                                `<div class="text-xs font-semibold text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividad.fecha_inicio)})</div>` : ''}
+                            <div class="etiqueta-estado ${ESTADOS[estado].color}">${ESTADOS[estado].texto}</div>
+                            <div class="flex justify-center mt-1 space-x-1">
+                                <button onclick="event.stopPropagation(); editarHorario('${actividad.id}')" class="btn-editar">Editar</button>
+                                <button onclick="event.stopPropagation(); confirmarEliminar('${actividad.id}')" class="btn-eliminar">Eliminar</button>
+                            </div>
+                        </div>
+                    `;
                 }).join('');
             } else {
                 contenido = "—";
             }
 
             fila.innerHTML += `
-                        <td class="border p-1 text-center ${actividadesDia.length > 0 ? ESTADOS[actividadesDia[0].estado].color : colorClass} 
-                            ${esHoy ? 'bloque-actual' : ''} 
-                            celda-horario text-white">
-                            ${contenido}
-                        </td>
-                    `;
+                <td class="border p-1 text-center ${actividadesDia.length > 0 ? ESTADOS[actividadesDia[0].estado].color : colorClass} 
+                    ${esHoy ? 'bloque-actual' : ''} 
+                    celda-horario text-white">
+                    ${contenido}
+                </td>
+            `;
         });
 
         tbody.appendChild(fila);
@@ -456,7 +401,240 @@ function generarTablaSemanal() {
     tabla.appendChild(tbody);
 }
 
-// Resto del código permanece igual...
+// Funciones para manejar horarios
+function abrirModalAgregar() {
+    document.getElementById("modal-titulo").textContent = "Agregar Horario";
+    document.getElementById("form-horario").reset();
+    document.getElementById("horario-id").value = "";
+    document.getElementById("btn-eliminar").classList.add("hidden");
+
+    const ahora = new Date();
+    const fechaStr = ahora.toISOString().split('T')[0];
+    const horaStr = ahora.getHours().toString().padStart(2, '0') + ":" +
+        ahora.getMinutes().toString().padStart(2, '0');
+
+    document.getElementById("fecha-inicio").value = fechaStr;
+    document.getElementById("hora-inicio").value = horaStr;
+    document.getElementById("fecha-fin").value = fechaStr;
+    document.getElementById("hora-fin").value = horaStr;
+
+    document.getElementById("modal-horario").classList.remove("hidden");
+}
+
+function editarHorario(id) {
+    let actividadEncontrada = null;
+
+    for (const trabajador in horarios) {
+        if (horarios[trabajador][id]) {
+            actividadEncontrada = horarios[trabajador][id];
+            break;
+        }
+    }
+
+    if (!actividadEncontrada) return;
+
+    document.getElementById("modal-titulo").textContent = "Editar Horario";
+    document.getElementById("horario-id").value = id;
+    document.getElementById("select-trabajador").value = actividadEncontrada.trabajador;
+    document.getElementById("select-actividad").value = actividadEncontrada.actividad;
+    document.getElementById("select-estado").value = actividadEncontrada.estado;
+
+    const requiereCliente = ['PROYECTO', 'SERVICIO EN TERRENO', 'VISITA A TERRENO', 'REUNION'].includes(actividadEncontrada.actividad);
+    document.getElementById("cliente-container").classList.toggle("hidden", !requiereCliente);
+
+    if (requiereCliente) {
+        document.getElementById("select-cliente").value = actividadEncontrada.cliente || "";
+    }
+
+    document.getElementById("fecha-inicio").value = actividadEncontrada.fecha_inicio;
+    document.getElementById("hora-inicio").value = actividadEncontrada.hora_inicio;
+    document.getElementById("fecha-fin").value = actividadEncontrada.fecha_fin;
+    document.getElementById("hora-fin").value = actividadEncontrada.hora_fin;
+
+    document.getElementById("btn-eliminar").classList.remove("hidden");
+    document.getElementById("modal-horario").classList.remove("hidden");
+}
+
+function guardarHorario(event) {
+    event.preventDefault();
+
+    const id = document.getElementById("horario-id").value || Date.now().toString();
+    const trabajador = document.getElementById("select-trabajador").value;
+    const actividad = document.getElementById("select-actividad").value;
+    const estado = document.getElementById("select-estado").value;
+    const cliente = document.getElementById("select-cliente").value || null;
+
+    const fecha_inicio = document.getElementById("fecha-inicio").value;
+    const hora_inicio = document.getElementById("hora-inicio").value;
+    const fecha_fin = document.getElementById("fecha-fin").value;
+    const hora_fin = document.getElementById("hora-fin").value;
+
+    const inicio = new Date(`${fecha_inicio}T${hora_inicio}`);
+    const fin = new Date(`${fecha_fin}T${hora_fin}`);
+
+    if (fin <= inicio) {
+        alert("La fecha/hora de fin debe ser posterior a la de inicio");
+        return false;
+    }
+
+    if (!horarios[trabajador]) {
+        horarios[trabajador] = {};
+    }
+
+    horarios[trabajador][id] = {
+        id,
+        trabajador,
+        actividad,
+        estado,
+        cliente,
+        fecha_inicio,
+        hora_inicio,
+        fecha_fin,
+        hora_fin
+    };
+
+    guardarHorariosEnStorage();
+    cerrarModal();
+    actualizarVistas();
+
+    return false;
+}
+
+function eliminarHorario() {
+    const id = document.getElementById("horario-id").value;
+
+    for (const trabajador in horarios) {
+        if (horarios[trabajador][id]) {
+            delete horarios[trabajador][id];
+
+            if (Object.keys(horarios[trabajador]).length === 0) {
+                delete horarios[trabajador];
+            }
+
+            break;
+        }
+    }
+
+    guardarHorariosEnStorage();
+    cerrarModal();
+    actualizarVistas();
+}
+
+function confirmarEliminar(id) {
+    mostrarConfirmacion(
+        "Confirmar eliminación",
+        "¿Estás seguro de que deseas eliminar este horario?",
+        function (confirmado) {
+            if (confirmado) {
+                for (const trabajador in horarios) {
+                    if (horarios[trabajador][id]) {
+                        delete horarios[trabajador][id];
+
+                        if (Object.keys(horarios[trabajador]).length === 0) {
+                            delete horarios[trabajador];
+                        }
+
+                        break;
+                    }
+                }
+
+                guardarHorariosEnStorage();
+                actualizarVistas();
+            }
+        }
+    );
+}
+
+// Funciones auxiliares
+function guardarHorariosEnStorage() {
+    localStorage.setItem('horarios', JSON.stringify(horarios));
+}
+
+function actualizarEstadosHorarios() {
+    const ahora = new Date();
+    let cambiosRealizados = false;
+
+    for (const trabajador in horarios) {
+        for (const id in horarios[trabajador]) {
+            const actividad = horarios[trabajador][id];
+            const inicio = new Date(`${actividad.fecha_inicio}T${actividad.hora_inicio}`);
+            const fin = new Date(`${actividad.fecha_fin}T${actividad.hora_fin}`);
+
+            if (actividad.estado === 'POR TRABAJAR' && ahora >= inicio && ahora < fin) {
+                actividad.estado = 'TRABAJANDO';
+                cambiosRealizados = true;
+            }
+            else if (actividad.estado === 'TRABAJANDO' && ahora >= fin) {
+                actividad.estado = 'TERMINADO';
+                cambiosRealizados = true;
+            }
+        }
+    }
+
+    if (cambiosRealizados) {
+        guardarHorariosEnStorage();
+        return true;
+    }
+    return false;
+}
+
+function getWeekNumber(date) {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+}
+
+function mostrarConfirmacion(titulo, mensaje, callback) {
+    document.getElementById("confirmacion-titulo").textContent = titulo;
+    document.getElementById("confirmacion-mensaje").textContent = mensaje;
+    confirmacionCallback = callback;
+    document.getElementById("modal-confirmacion").style.display = "flex";
+}
+
+function confirmarAccion(confirmado) {
+    if (confirmacionCallback) {
+        confirmacionCallback(confirmado);
+    }
+    document.getElementById("modal-confirmacion").style.display = "none";
+}
+
+function cerrarModal() {
+    document.getElementById("modal-horario").classList.add("hidden");
+}
+
+function cambiarTab(tab) {
+    tabActual = tab;
+
+    document.querySelectorAll('.tab').forEach(t => {
+        t.classList.remove('active');
+    });
+    document.querySelector(`.tab[onclick="cambiarTab('${tab}')"]`).classList.add('active');
+
+    document.querySelectorAll('.tab-content').forEach(c => {
+        c.classList.remove('active');
+    });
+    document.getElementById(`tab-${tab}`).classList.add('active');
+
+    if (tab === 'hoy') {
+        generarTablaHoy();
+    } else {
+        generarTablaSemanal();
+    }
+}
+
+function semanaAnterior() {
+    fechaSeleccionada.setDate(fechaSeleccionada.getDate() - 7);
+    if (tabActual === 'semanal') {
+        generarTablaSemanal();
+    }
+}
+
+function semanaSiguiente() {
+    fechaSeleccionada.setDate(fechaSeleccionada.getDate() + 7);
+    if (tabActual === 'semanal') {
+        generarTablaSemanal();
+    }
+}
 
 // Inicialización al cargar la página
 window.onload = function () {
@@ -510,8 +688,6 @@ window.onload = function () {
 
         const requiere = ['PROYECTO', 'SERVICIO EN TERRENO', 'VISITA A TERRENO', 'REUNION'].includes(actividad);
         document.getElementById("cliente-container").classList.toggle("hidden", !requiere);
-
-        // Para el modal rápido
         document.getElementById("rapida-cliente-container").classList.toggle("hidden", !requiere);
     });
 
@@ -547,83 +723,4 @@ window.onload = function () {
             actualizarVistas();
         }
     }, 60000);
-
-    // Cargar datos de ejemplo si no hay datos guardados
-    if (Object.keys(horarios).length === 0) {
-        // Datos de ejemplo
-        const hoy = new Date();
-        const manana = new Date();
-        manana.setDate(hoy.getDate() + 1);
-
-        const hoyStr = hoy.toISOString().split('T')[0];
-        const mananaStr = manana.toISOString().split('T')[0];
-
-        horarios = {
-            "Franklin Mendoza": {
-                "1": {
-                    id: "1",
-                    trabajador: "Franklin Mendoza",
-                    actividad: "TURNO SOC",
-                    cliente: null,
-                    fecha_inicio: hoyStr,
-                    hora_inicio: "21:00",
-                    fecha_fin: mananaStr,
-                    hora_fin: "06:00",
-                    estado: "POR TRABAJAR"
-                },
-                "4": {
-                    id: "4",
-                    trabajador: "Franklin Mendoza",
-                    actividad: "REUNION",
-                    cliente: "CODELPA",
-                    fecha_inicio: hoyStr,
-                    hora_inicio: "10:00",
-                    fecha_fin: hoyStr,
-                    hora_fin: "16:00",
-                    estado: "PENDIENTE"
-                }
-            },
-            "Johandry Bellorin": {
-                "2": {
-                    id: "2",
-                    trabajador: "Johandry Bellorin",
-                    actividad: "PROYECTO",
-                    cliente: "CODELPA",
-                    fecha_inicio: hoyStr,
-                    hora_inicio: "08:00",
-                    fecha_fin: hoyStr,
-                    hora_fin: "17:00",
-                    estado: "POR TRABAJAR"
-                }
-            },
-            "Gabriel Fuentes": {
-                "3": {
-                    id: "3",
-                    trabajador: "Gabriel Fuentes",
-                    actividad: "SERVICIO EN TERRENO",
-                    cliente: "HVT",
-                    fecha_inicio: "2025-07-10",
-                    hora_inicio: "08:00",
-                    fecha_fin: "2025-07-11",
-                    hora_fin: "17:00",
-                    estado: "POR TRABAJAR"
-                },
-                "5": {
-                    id: "5",
-                    trabajador: "Gabriel Fuentes",
-                    actividad: "REUNION",
-                    cliente: "IT-EXPERIENCE",
-                    fecha_inicio: "2025-07-10",
-                    hora_inicio: "10:00",
-                    fecha_fin: "2025-07-10",
-                    hora_fin: "12:00",
-                    estado: "PENDIENTE"
-                }
-            }
-        };
-
-        guardarHorariosEnStorage();
-        generarTablaHoy();
-        generarTablaSemanal();
-    }
 };
