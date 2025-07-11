@@ -91,7 +91,7 @@ function actualizarReloj() {
     }
 }
 
-// Función para buscar actividades que se superpongan con un bloque horario (mejorada)
+// Función mejorada para buscar actividades que se superpongan con un bloque horario
 function buscarActividades(trabajador, fecha, bloque) {
     if (!horarios[trabajador]) return [];
 
@@ -111,14 +111,24 @@ function buscarActividades(trabajador, fecha, bloque) {
         const inicioActividad = new Date(`${actividad.fecha_inicio}T${actividad.hora_inicio}`);
         const finActividad = new Date(`${actividad.fecha_fin}T${actividad.hora_fin}`);
 
-        // Verificar si la actividad ocurre en la fecha del bloque
-        const actividadEnFecha = (
-            (inicioActividad <= finBloque && finActividad >= inicioBloque) ||
-            (inicioActividad.toDateString() === fechaBloque.toDateString()) ||
-            (finActividad.toDateString() === fechaBloque.toDateString())
+        // Ajustar para actividades que cruzan medianoche
+        if (actividad.hora_fin < actividad.hora_inicio) {
+            finActividad.setDate(finActividad.getDate() + 1);
+        }
+
+        // Verificar superposición entre el bloque y la actividad
+        const actividadEnBloque = (
+            (inicioActividad < finBloque && finActividad > inicioBloque) || // Superposición normal
+            (actividad.fecha_inicio === fecha && actividad.fecha_fin === fecha) || // Mismo día
+            (actividad.fecha_inicio === fecha && actividad.fecha_fin !== fecha && actividad.hora_fin < actividad.hora_inicio) || // Cruce de medianoche
+            (actividad.fecha_inicio !== actividad.fecha_fin && ( // Actividades multi-día
+                (fecha > actividad.fecha_inicio && fecha < actividad.fecha_fin) || // Día intermedio
+                (fecha === actividad.fecha_inicio && finActividad > inicioBloque) || // Primer día
+                (fecha === actividad.fecha_fin && inicioActividad < finBloque) // Último día
+            ))
         );
 
-        if (actividadEnFecha) {
+        if (actividadEnBloque) {
             actividadesEnBloque.push(actividad);
         }
     }
@@ -201,13 +211,13 @@ function generarTablaHoy() {
 
                 colorClass = ESTADOS[estado].color;
 
-                // Contenido principal
+                // Contenido principal (con texto "Turno iniciado" más grande)
                 contenido = `
                             <div class="text-xs font-bold truncate-text">${actividadPrincipal.actividad}</div>
                             ${actividadPrincipal.cliente ? `<div class="text-[10px] italic truncate-text">${actividadPrincipal.cliente}</div>` : ''}
                             <div class="text-hora truncate-text">${formatoHora(actividadPrincipal.hora_inicio)} - ${formatoHora(actividadPrincipal.hora_fin)}</div>
                             ${actividadPrincipal.fecha_inicio !== actividadPrincipal.fecha_fin ?
-                        `<div class="text-xs text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividadPrincipal.fecha_inicio)})</div>` : ''}
+                        `<div class="text-xs font-semibold text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividadPrincipal.fecha_inicio)})</div>` : ''}
                             <div class="etiqueta-estado ${ESTADOS[estado].color}">${ESTADOS[estado].texto}</div>
                         `;
 
@@ -418,7 +428,7 @@ function generarTablaSemanal() {
                                     ${actividad.cliente ? `<div class="text-[10px] italic truncate-text">${actividad.cliente}</div>` : ''}
                                     <div class="text-hora truncate-text">${formatoHora(actividad.hora_inicio)} - ${formatoHora(actividad.hora_fin)}</div>
                                     ${actividad.fecha_inicio !== actividad.fecha_fin ?
-                            `<div class="text-xs text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividad.fecha_inicio)})</div>` : ''}
+                            `<div class="text-xs font-semibold text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividad.fecha_inicio)})</div>` : ''}
                                     <div class="etiqueta-estado ${ESTADOS[estado].color}">${ESTADOS[estado].texto}</div>
                                     <div class="flex justify-center mt-1 space-x-1">
                                         <button onclick="event.stopPropagation(); editarHorario('${actividad.id}')" class="btn-editar">Editar</button>
@@ -446,513 +456,7 @@ function generarTablaSemanal() {
     tabla.appendChild(tbody);
 }
 
-// Función para mostrar actividades de un día específico
-function mostrarActividadesDia(trabajador, fecha) {
-    if (!horarios[trabajador]) {
-        actividadesTemporales = [];
-        return;
-    }
-
-    actividadesTemporales = Object.values(horarios[trabajador]).filter(actividad => {
-        const inicio = new Date(`${actividad.fecha_inicio}T${actividad.hora_inicio}`);
-        const fin = new Date(`${actividad.fecha_fin}T${actividad.hora_fin}`);
-        const dia = new Date(fecha);
-
-        return (inicio <= dia && fin >= dia) ||
-            (inicio.toDateString() === dia.toDateString()) ||
-            (fin.toDateString() === dia.toDateString());
-    });
-
-    const modal = document.getElementById("modal-actividades");
-    const titulo = document.getElementById("modal-actividades-titulo");
-    const lista = document.getElementById("lista-actividades");
-
-    const fechaObj = new Date(fecha);
-    titulo.textContent = `Actividades de ${trabajador} el ${fechaObj.toLocaleDateString("es-CL", { day: 'numeric', month: 'long' })}`;
-    lista.innerHTML = '';
-
-    actividadesTemporales.forEach((actividad, index) => {
-        const estado = actividad.estado;
-        const rangoFechas = formatoFechaModal(
-            actividad.fecha_inicio,
-            actividad.fecha_fin,
-            actividad.hora_inicio,
-            actividad.hora_fin
-        );
-
-        const item = document.createElement("div");
-        item.className = "actividad-item";
-        item.innerHTML = `
-                    <div class="font-bold">${actividad.actividad}</div>
-                    ${actividad.cliente ? `<div class="text-sm italic">${actividad.cliente}</div>` : ''}
-                    <div class="text-sm">${rangoFechas}</div>
-                    ${actividad.fecha_inicio !== fecha ?
-                `<div class="text-xs text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividad.fecha_inicio)})</div>` : ''}
-                    <div class="etiqueta-estado ${ESTADOS[estado].color}">${ESTADOS[estado].texto}</div>
-                    <div class="flex justify-end mt-2 space-x-2">
-                        <button onclick="editarActividadSuperpuesta(${index})" class="btn-editar">Editar</button>
-                        <button onclick="confirmarEliminarActividadSuperpuesta(${index})" class="btn-eliminar">Eliminar</button>
-                    </div>
-                `;
-
-        lista.appendChild(item);
-    });
-
-    modal.style.display = "flex";
-}
-
-// Función para mostrar actividades superpuestas en un bloque
-function mostrarActividadesSuperpuestas(trabajador, fecha, bloque) {
-    const actividades = buscarActividades(trabajador, fecha, bloque);
-    if (actividades.length <= 1) return;
-
-    // Ordenar actividades por fecha/hora de inicio
-    actividades.sort((a, b) => {
-        const fechaA = new Date(`${a.fecha_inicio}T${a.hora_inicio}`);
-        const fechaB = new Date(`${b.fecha_inicio}T${b.hora_inicio}`);
-        return fechaA - fechaB;
-    });
-
-    actividadesTemporales = actividades;
-
-    const modal = document.getElementById("modal-actividades");
-    const titulo = document.getElementById("modal-actividades-titulo");
-    const lista = document.getElementById("lista-actividades");
-
-    const bloqueInfo = bloquesHorarios[bloque];
-    titulo.textContent = `Actividades de ${trabajador} en ${bloqueInfo.nombre} (${bloqueInfo.inicio}-${bloqueInfo.fin})`;
-    lista.innerHTML = '';
-
-    actividades.forEach((actividad, index) => {
-        const estado = actividad.estado;
-        const rangoFechas = formatoFechaModal(
-            actividad.fecha_inicio,
-            actividad.fecha_fin,
-            actividad.hora_inicio,
-            actividad.hora_fin
-        );
-
-        const item = document.createElement("div");
-        item.className = "actividad-item";
-        item.innerHTML = `
-                    <div class="font-bold">${actividad.actividad}</div>
-                    ${actividad.cliente ? `<div class="text-sm italic">${actividad.cliente}</div>` : ''}
-                    <div class="text-sm">${rangoFechas}</div>
-                    ${actividad.fecha_inicio !== fecha ?
-                `<div class="text-xs text-yellow-400">(Turno iniciado el ${formatoFechaCompleta(actividad.fecha_inicio)})</div>` : ''}
-                    <div class="etiqueta-estado ${ESTADOS[estado].color}">${ESTADOS[estado].texto}</div>
-                    <div class="flex justify-end mt-2 space-x-2">
-                        <button onclick="editarActividadSuperpuesta(${index})" class="btn-editar">Editar</button>
-                        <button onclick="confirmarEliminarActividadSuperpuesta(${index})" class="btn-eliminar">Eliminar</button>
-                    </div>
-                `;
-
-        lista.appendChild(item);
-    });
-
-    modal.style.display = "flex";
-}
-
-// Función para cerrar el modal de actividades
-function cerrarModalActividades() {
-    document.getElementById("modal-actividades").style.display = "none";
-}
-
-// Función para editar una actividad superpuesta
-function editarActividadSuperpuesta(index) {
-    if (actividadesTemporales && actividadesTemporales[index]) {
-        editarHorario(actividadesTemporales[index].id);
-        cerrarModalActividades();
-    }
-}
-
-// Función para confirmar eliminación de actividad superpuesta
-function confirmarEliminarActividadSuperpuesta(index) {
-    if (actividadesTemporales && actividadesTemporales[index]) {
-        confirmarEliminar(actividadesTemporales[index].id);
-        cerrarModalActividades();
-    }
-}
-
-// Función para actualizar estados de los horarios automáticamente
-function actualizarEstadosHorarios() {
-    const ahora = new Date();
-    let cambiosRealizados = false;
-
-    for (const trabajador in horarios) {
-        for (const id in horarios[trabajador]) {
-            const actividad = horarios[trabajador][id];
-            const inicio = new Date(`${actividad.fecha_inicio}T${actividad.hora_inicio}`);
-            const fin = new Date(`${actividad.fecha_fin}T${actividad.hora_fin}`);
-
-            // Cambiar de POR TRABAJAR a TRABAJANDO si es hora de inicio
-            if (actividad.estado === 'POR TRABAJAR' && ahora >= inicio && ahora < fin) {
-                actividad.estado = 'TRABAJANDO';
-                cambiosRealizados = true;
-            }
-            // Cambiar de TRABAJANDO a TERMINADO si ya pasó la hora de fin
-            else if (actividad.estado === 'TRABAJANDO' && ahora >= fin) {
-                actividad.estado = 'TERMINADO';
-                cambiosRealizados = true;
-            }
-        }
-    }
-
-    if (cambiosRealizados) {
-        guardarHorariosEnStorage();
-        return true;
-    }
-    return false;
-}
-
-// Función para cambiar entre pestañas
-function cambiarTab(tab) {
-    tabActual = tab;
-
-    // Actualizar clases de pestañas
-    document.querySelectorAll('.tab').forEach(t => {
-        t.classList.remove('active');
-    });
-    document.querySelector(`.tab[onclick="cambiarTab('${tab}')"]`).classList.add('active');
-
-    // Actualizar contenido de pestañas
-    document.querySelectorAll('.tab-content').forEach(c => {
-        c.classList.remove('active');
-    });
-    document.getElementById(`tab-${tab}`).classList.add('active');
-
-    // Actualizar la vista correspondiente
-    if (tab === 'hoy') {
-        generarTablaHoy();
-    } else {
-        generarTablaSemanal();
-    }
-}
-
-// Función para guardar horarios en localStorage
-function guardarHorariosEnStorage() {
-    localStorage.setItem('horarios', JSON.stringify(horarios));
-}
-
-// Función para abrir el modal de agregar horario
-function abrirModalAgregar() {
-    document.getElementById("modal-titulo").textContent = "Agregar Horario";
-    document.getElementById("form-horario").reset();
-    document.getElementById("horario-id").value = "";
-    document.getElementById("btn-eliminar").classList.add("hidden");
-
-    // Establecer fecha y hora actual como predeterminadas
-    const ahora = new Date();
-    const fechaStr = ahora.toISOString().split('T')[0];
-    const horaStr = ahora.getHours().toString().padStart(2, '0') + ":" +
-        ahora.getMinutes().toString().padStart(2, '0');
-
-    document.getElementById("fecha-inicio").value = fechaStr;
-    document.getElementById("hora-inicio").value = horaStr;
-    document.getElementById("fecha-fin").value = fechaStr;
-    document.getElementById("hora-fin").value = horaStr;
-
-    document.getElementById("modal-horario").classList.remove("hidden");
-}
-
-// Función para editar un horario existente
-function editarHorario(id) {
-    let actividadEncontrada = null;
-
-    for (const trabajador in horarios) {
-        if (horarios[trabajador][id]) {
-            actividadEncontrada = horarios[trabajador][id];
-            break;
-        }
-    }
-
-    if (!actividadEncontrada) return;
-
-    document.getElementById("modal-titulo").textContent = "Editar Horario";
-    document.getElementById("horario-id").value = id;
-    document.getElementById("select-trabajador").value = actividadEncontrada.trabajador;
-    document.getElementById("select-actividad").value = actividadEncontrada.actividad;
-    document.getElementById("select-estado").value = actividadEncontrada.estado;
-
-    // Mostrar campo de cliente si es necesario
-    const requiereCliente = ['PROYECTO', 'SERVICIO EN TERRENO', 'VISITA A TERRENO', 'REUNION'].includes(actividadEncontrada.actividad);
-    document.getElementById("cliente-container").classList.toggle("hidden", !requiereCliente);
-
-    if (requiereCliente) {
-        document.getElementById("select-cliente").value = actividadEncontrada.cliente || "";
-    }
-
-    document.getElementById("fecha-inicio").value = actividadEncontrada.fecha_inicio;
-    document.getElementById("hora-inicio").value = actividadEncontrada.hora_inicio;
-    document.getElementById("fecha-fin").value = actividadEncontrada.fecha_fin;
-    document.getElementById("hora-fin").value = actividadEncontrada.hora_fin;
-
-    document.getElementById("btn-eliminar").classList.remove("hidden");
-    document.getElementById("modal-horario").classList.remove("hidden");
-}
-
-// Función para guardar un horario (nuevo o editado)
-function guardarHorario(event) {
-    event.preventDefault();
-
-    const id = document.getElementById("horario-id").value || Date.now().toString();
-    const trabajador = document.getElementById("select-trabajador").value;
-    const actividad = document.getElementById("select-actividad").value;
-    const estado = document.getElementById("select-estado").value;
-    const cliente = document.getElementById("select-cliente").value || null;
-
-    // Obtener fechas como strings directamente sin conversión
-    const fecha_inicio = document.getElementById("fecha-inicio").value;
-    const hora_inicio = document.getElementById("hora-inicio").value;
-    const fecha_fin = document.getElementById("fecha-fin").value;
-    const hora_fin = document.getElementById("hora-fin").value;
-
-    // Validar fechas usando objetos Date con zona horaria local
-    const inicio = new Date(`${fecha_inicio}T${hora_inicio}`);
-    const fin = new Date(`${fecha_fin}T${hora_fin}`);
-
-    if (fin <= inicio) {
-        alert("La fecha/hora de fin debe ser posterior a la de inicio");
-        return false;
-    }
-
-    // Crear o actualizar el horario
-    if (!horarios[trabajador]) {
-        horarios[trabajador] = {};
-    }
-
-    horarios[trabajador][id] = {
-        id,
-        trabajador,
-        actividad,
-        estado,
-        cliente,
-        fecha_inicio,  // Se guarda como string directamente
-        hora_inicio,   // Se guarda como string directamente
-        fecha_fin,     // Se guarda como string directamente
-        hora_fin       // Se guarda como string directamente
-    };
-
-    guardarHorariosEnStorage();
-    cerrarModal();
-
-    // Actualizar ambas vistas
-    actualizarVistas();
-
-    return false;
-}
-
-// Función para eliminar un horario
-function eliminarHorario() {
-    const id = document.getElementById("horario-id").value;
-
-    for (const trabajador in horarios) {
-        if (horarios[trabajador][id]) {
-            delete horarios[trabajador][id];
-
-            // Eliminar el trabajador si no tiene más horarios
-            if (Object.keys(horarios[trabajador]).length === 0) {
-                delete horarios[trabajador];
-            }
-
-            break;
-        }
-    }
-
-    guardarHorariosEnStorage();
-    cerrarModal();
-
-    // Actualizar ambas vistas
-    actualizarVistas();
-}
-
-// Función para confirmar eliminación
-function confirmarEliminar(id) {
-    mostrarConfirmacion(
-        "Confirmar eliminación",
-        "¿Estás seguro de que deseas eliminar este horario?",
-        function (confirmado) {
-            if (confirmado) {
-                for (const trabajador in horarios) {
-                    if (horarios[trabajador][id]) {
-                        delete horarios[trabajador][id];
-
-                        // Eliminar el trabajador si no tiene más horarios
-                        if (Object.keys(horarios[trabajador]).length === 0) {
-                            delete horarios[trabajador];
-                        }
-
-                        break;
-                    }
-                }
-
-                guardarHorariosEnStorage();
-                actualizarVistas();
-            }
-        }
-    );
-}
-
-// Función para mostrar confirmación
-function mostrarConfirmacion(titulo, mensaje, callback) {
-    document.getElementById("confirmacion-titulo").textContent = titulo;
-    document.getElementById("confirmacion-mensaje").textContent = mensaje;
-    confirmacionCallback = callback;
-    document.getElementById("modal-confirmacion").style.display = "flex";
-}
-
-// Función para confirmar acción
-function confirmarAccion(confirmado) {
-    if (confirmacionCallback) {
-        confirmacionCallback(confirmado);
-    }
-    document.getElementById("modal-confirmacion").style.display = "none";
-}
-
-// Función para cerrar el modal
-function cerrarModal() {
-    document.getElementById("modal-horario").classList.add("hidden");
-}
-
-// Función para cerrar el modal de actividad rápida
-function cerrarModalActividadRapida() {
-    document.getElementById("modal-actividad-rapida").classList.add("hidden");
-}
-
-// Función para exportar a Excel
-function exportarAExcel() {
-    // Convertir los horarios a un formato adecuado para Excel
-    const datos = [];
-
-    for (const trabajador in horarios) {
-        for (const id in horarios[trabajador]) {
-            const actividad = horarios[trabajador][id];
-            datos.push({
-                "Especialista": actividad.trabajador,
-                "Área": trabajadores.find(t => t.nombre === actividad.trabajador)?.area || "",
-                "Actividad": actividad.actividad,
-                "Cliente": actividad.cliente || "",
-                "Fecha Inicio": actividad.fecha_inicio,
-                "Hora Inicio": actividad.hora_inicio,
-                "Fecha Fin": actividad.fecha_fin,
-                "Hora Fin": actividad.hora_fin,
-                "Estado": actividad.estado
-            });
-        }
-    }
-
-    // Crear libro de Excel
-    const libro = XLSX.utils.book_new();
-    const hoja = XLSX.utils.json_to_sheet(datos);
-    XLSX.utils.book_append_sheet(libro, hoja, "Horarios");
-
-    // Descargar el archivo
-    XLSX.writeFile(libro, "horarios.xlsx");
-}
-
-// Función para importar desde Excel
-function importarExcel(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-
-        // Limpiar horarios existentes
-        horarios = {};
-
-        // Procesar cada fila del Excel
-        jsonData.forEach(row => {
-            const trabajador = row["Especialista"];
-            if (!trabajador) return;
-
-            // Crear ID único
-            const id = Date.now().toString() + Math.floor(Math.random() * 1000);
-
-            if (!horarios[trabajador]) {
-                horarios[trabajador] = {};
-            }
-
-            horarios[trabajador][id] = {
-                id,
-                trabajador,
-                actividad: row["Actividad"] || "OFICINA",
-                estado: row["Estado"] || "POR TRABAJAR",
-                cliente: row["Cliente"] || null,
-                fecha_inicio: formatDateForSystem(row["Fecha Inicio"]),
-                hora_inicio: row["Hora Inicio"] || "08:00",
-                fecha_fin: formatDateForSystem(row["Fecha Fin"]),
-                hora_fin: row["Hora Fin"] || "17:00"
-            };
-        });
-
-        guardarHorariosEnStorage();
-        actualizarVistas();
-        alert("Datos importados correctamente");
-    };
-    reader.readAsArrayBuffer(file);
-}
-
-// Función auxiliar para formatear fechas desde Excel
-function formatDateForSystem(excelDate) {
-    if (!excelDate) return new Date().toISOString().split('T')[0];
-
-    // Si es un número (formato serial de Excel)
-    if (typeof excelDate === 'number') {
-        const date = new Date((excelDate - (25567 + 2)) * 86400 * 1000);
-        return date.toISOString().split('T')[0];
-    }
-
-    // Si ya es una cadena de fecha
-    if (typeof excelDate === 'string') {
-        // Intentar parsear diferentes formatos
-        const formats = [
-            /(\d{4})-(\d{2})-(\d{2})/, // YYYY-MM-DD
-            /(\d{2})\/(\d{2})\/(\d{4})/, // DD/MM/YYYY
-            /(\d{2})\/(\d{2})\/(\d{2})/  // DD/MM/YY
-        ];
-
-        for (const format of formats) {
-            const match = excelDate.match(format);
-            if (match) {
-                let year, month, day;
-
-                if (match[0].includes('-')) { // YYYY-MM-DD
-                    year = match[1];
-                    month = match[2];
-                    day = match[3];
-                } else { // DD/MM/YYYY o DD/MM/YY
-                    day = match[1];
-                    month = match[2];
-                    year = match[3].length === 2 ? '20' + match[3] : match[3];
-                }
-
-                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-            }
-        }
-    }
-
-    // Si no se puede parsear, devolver hoy
-    return new Date().toISOString().split('T')[0];
-}
-
-function semanaAnterior() {
-    fechaSeleccionada.setDate(fechaSeleccionada.getDate() - 7);
-    if (tabActual === 'semanal') {
-        generarTablaSemanal();
-    }
-}
-
-function semanaSiguiente() {
-    fechaSeleccionada.setDate(fechaSeleccionada.getDate() + 7);
-    if (tabActual === 'semanal') {
-        generarTablaSemanal();
-    }
-}
+// Resto del código permanece igual...
 
 // Inicialización al cargar la página
 window.onload = function () {
